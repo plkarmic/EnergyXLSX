@@ -353,7 +353,8 @@ func saveToNewSheet(wiersze []energia, typ string, fileObr xlsx.File) xlsx.File 
 			cell.SetStyle(headStyle)
 			rowNbr = 3
 		}
-		if plantNbr == wiersze[i].zaklad && wiersze[i].przypisanie == typ {
+		// Wyklucznie grudnia roku poprzedniego
+		if plantNbr == wiersze[i].zaklad && wiersze[i].przypisanie == typ && wiersze[i].accountingMonth != 12 && wiersze[i].accountingYear != 2017 {
 			v = i //to track last index for certain type
 			rowInMonth++
 			rowNbr++
