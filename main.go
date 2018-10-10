@@ -2,16 +2,20 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/tealeg/xlsx"
+	"github.com/tidwall/gjson"
 )
 
 type energia struct {
-	przec           string
+	przec           string //dostawca numer
+	przecStr        string //dostawca słownie
 	zaklad          int
 	po              string
 	data            time.Time //data faktury w raporcie
@@ -297,10 +301,12 @@ func saveToNewSheet(wiersze []energia, typ string, fileObr xlsx.File) xlsx.File 
 				col.Width = 15
 			}
 			//custom col width
+			col = sheet.Col(0)
+			col.Width = 5
 			col = sheet.Col(4)
 			col.Width = 20
 			col = sheet.Col(5)
-			col.Width = 35
+			col.Width = 43
 			col = sheet.Col(10)
 			col.Width = 20
 			row = sheet.AddRow()
@@ -351,6 +357,7 @@ func saveToNewSheet(wiersze []energia, typ string, fileObr xlsx.File) xlsx.File 
 			cell = row.AddCell()
 			cell.Value = "nazwa dostawcy"
 			cell.SetStyle(headStyle)
+			col.Width = 25
 			rowNbr = 3
 		}
 		// Wyklucznie grudnia roku poprzedniego
@@ -436,39 +443,43 @@ func saveToNewSheet(wiersze []energia, typ string, fileObr xlsx.File) xlsx.File 
 			cell.Value = wiersze[i].opis
 			cell.SetStyle(defCellStyle)
 			cell = row.AddCell()
-			if wiersze[i].ilosc > 0 {
+			if wiersze[i].ilosc > 0.001 {
 				cell.SetFloatWithFormat(wiersze[i].ilosc, "##,##")
 				cell.SetStyle(defCellStyle)
 			} else {
-				cell.SetStyle(warning)
+				// cell.SetStyle(warning)
+				cell.SetStyle(defCellStyle)
 			}
 			cell = row.AddCell()
 			cell.SetFloatWithFormat(wiersze[i].kwotaWkr, "##,##0.00")
 			cell.SetStyle(defCellStyle)
 			cell = row.AddCell()
-			if wiersze[i].ilosc > 0 {
+			if wiersze[i].ilosc > 0.001 {
 				cell.SetFloatWithFormat(wiersze[i].kwotaWkr/wiersze[i].ilosc, "0.00")
+				cell.SetStyle(defCellStyle)
+			} else {
+				// cell.SetStyle(warning)
+				cell.SetStyle(defCellStyle)
 			}
-			cell.SetStyle(defCellStyle)
 			cell = row.AddCell()
 			cell.Value = wiersze[i].przec
 			cell.SetStyle(defCellStyle)
 			cell = row.AddCell()
-			cell.Value = "TBD"
+			cell.Value = wiersze[i].przecStr
 			cell.SetStyle(col0StyleRight)
 			//k := len(wiersze)
 			// fmt.Println(k)
 			// fmt.Println(i)
 
-			//debug purposes
-			cell = row.AddCell()
-			cell.Value = month
+			// //debug purposes
+			// cell = row.AddCell()
+			// cell.Value = month
 
-			cell = row.AddCell()
-			cell.Value = month
+			// cell = row.AddCell()
+			// cell.Value = month
 
-			cell = row.AddCell()
-			cell.SetValue(wiersze[i].accountingMonth)
+			// cell = row.AddCell()
+			// cell.SetValue(wiersze[i].accountingMonth)
 
 			totalkWhAll += wiersze[i].ilosc
 			totalPLNAll += wiersze[i].kwotaWkr
@@ -677,11 +688,31 @@ func setIloscPerObrot(wiersze []energia) {
 	}
 }
 
+func DostawcaIntToStr(dostawca string) string {
+
+	jsonFile, _ := os.Open("./dostawca.json")
+	defer jsonFile.Close()
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		//	panic(err)
+	}
+	// var Kraj Countries
+	// json.Unmarshal(byteValue, &Kraj)
+	bodySTR := string(byteValue)
+
+	// gjson.Get(jsonFile,dostawca)
+	return gjson.Get(bodySTR, dostawca).String()
+}
+
 func main() {
 
 	const shortForm = "2018-Jan-01"
 
-	excelFileName := "C:\\tmp\\175300_3.xlsx"
+	// excelFileName := "C:\\tmp\\175300_3.xlsx"
+
+	excelFileName := os.Args[1]
+	outDir := os.Args[2]
+
 	xlFile, err := xlsx.OpenFile(excelFileName)
 	if err != nil {
 		fmt.Printf("error")
@@ -695,6 +726,11 @@ func main() {
 		i := 2 //columns iteration, i - columns index, 2 -where the data in xlsx file starts Cell (C8)
 
 		wiersz.przec = sheet.Cell(j, i).String()
+
+		//dostawca słownie
+
+		wiersz.przecStr = DostawcaIntToStr(wiersz.przec)
+
 		wiersz.zaklad, _ = sheet.Cell(j, i+1).Int()
 		wiersz.po = sheet.Cell(j, i+2).String()
 
@@ -776,12 +812,6 @@ func main() {
 	fileXLSX3 := *xlsx.NewFile()
 	for z := 0; z < v+1; z++ {
 
-		//sortowanie po dacie per zaklad
-
-		sort.Slice(slicePerPlant[z], func(i, j int) bool {
-			return slicePerPlant[z][i].data.Before(slicePerPlant[z][j].data)
-		})
-
 		slicePerPlant[z] = invoiceAggregation(slicePerPlant[z])
 		slicePerPlant[z] = checkInvoiceTimePeriod(slicePerPlant[z])
 		slicePerPlant[z] = setDateFromDateTo(slicePerPlant[z])
@@ -789,13 +819,25 @@ func main() {
 		//setIloscPerObrot(slicePerPlant[z])
 		setIloscPerObrotNew(slicePerPlant[z])
 
+		//sortowanie po dacie per zaklad
+		// Zmiana sposobu sortowania z daty na accountingMonth -> dla zakladu 3437 fakrury za wystawiane z opoźnieniem co skutkuje zabużeniem chronologii raportu
+
+		sort.Slice(slicePerPlant[z], func(i, j int) bool {
+			fmt.Println(slicePerPlant[z][i].accountingMonth)
+			fmt.Println(slicePerPlant[z][j].accountingMonth)
+			return slicePerPlant[z][i].accountingMonth < slicePerPlant[z][j].accountingMonth
+		})
+
 		fileXLSX = saveToNewSheet(slicePerPlant[z], "obrót", fileXLSX)
 		fileXLSX2 = saveToNewSheet(slicePerPlant[z], "dystrybucja", fileXLSX2)
 		fileXLSX3 = saveToNewSheet(slicePerPlant[z], "obrót+dystrybucja", fileXLSX3)
 
 	}
-	err = fileXLSX.Save("C:\\tmp\\test-obr.xlsx")
-	err = fileXLSX2.Save("C:\\tmp\\test-dys.xlsx")
-	err = fileXLSX3.Save("C:\\tmp\\test-dysobr.xlsx")
+
+	outDir = strings.Replace(outDir, "\\", "\\\\", -1) + "\\\\" + strings.Split(strings.Split(excelFileName, "\\")[2], ".")[0]
+	fmt.Println(outDir)
+	err = fileXLSX.Save(outDir + "-obr.xlsx")
+	err = fileXLSX2.Save(outDir + "-dys.xlsx")
+	err = fileXLSX3.Save(outDir + "-dysobr.xlsx")
 
 }
