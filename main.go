@@ -85,7 +85,7 @@ func setDateFromDateTo(wiersze []energia) []energia {
 func setAccountingMonth(wiersze []energia) []energia {
 	for i := range wiersze {
 		if wiersze[i].referencja == "97971/1804/00172" {
-			fmt.Println(wiersze[i].referencja)
+			// fmt.Println(wiersze[i].referencja)
 		}
 
 		if wiersze[i].fakOkresowa == false { //faktura miesieczna
@@ -120,7 +120,7 @@ func splitSlicePerPlant(wiersze []energia) ([][]energia, int) {
 	v, m, z, i := 0, 0, 0, 0
 	for i = range wiersze {
 		if plantNbr != wiersze[i].zaklad {
-			fmt.Println(wiersze[i].zaklad)
+			// fmt.Println(wiersze[i].zaklad)
 			z += m
 			l := i
 			k := z - m
@@ -577,7 +577,7 @@ func setIloscPerObrotNew(wiersze []energia) {
 	double := false
 	for i := range wiersze {
 		if wiersze[i].referencja == "97971/1803/00168" && wiersze[i].zaklad == 3437 {
-			fmt.Println(wiersze[i])
+			// fmt.Println(wiersze[i])
 		}
 		currentMonth := wiersze[i].accountingMonth
 		if wiersze[i].przypisanie == "obrót" {
@@ -666,9 +666,9 @@ func setIloscPerObrot(wiersze []energia) {
 				} else {
 					monthJ = monthArrJ[3]
 
-					fmt.Println(i)
-					fmt.Println(wiersze[i])
-					fmt.Println(monthArrJ)
+					// fmt.Println(i)
+					// fmt.Println(wiersze[i])
+					// fmt.Println(monthArrJ)
 
 					yearJ = monthArrJ[4]
 
@@ -761,12 +761,12 @@ func main() {
 
 		ilosc := sheet.Cell(j, i+14).String()
 
-		if sheet.Cell(j, i+16).String() == "roz.energii,03/2018,zakład,3437,dystrybucja" {
-			fmt.Println(ilosc)
-		}
-		if ilosc == "1.008.931,0" {
-			fmt.Println(ilosc)
-		}
+		// if sheet.Cell(j, i+16).String() == "roz.energii,03/2018,zakład,3437,dystrybucja" {
+		// 	fmt.Println(ilosc)
+		// }
+		// if ilosc == "1.008.931,0" {
+		// 	fmt.Println(ilosc)
+		// }
 
 		ilosc = strings.Replace(ilosc, ".", "", -1)
 		ilosc = strings.TrimLeft(ilosc, " ")
@@ -823,8 +823,8 @@ func main() {
 		// Zmiana sposobu sortowania z daty na accountingMonth -> dla zakladu 3437 fakrury za wystawiane z opoźnieniem co skutkuje zabużeniem chronologii raportu
 
 		sort.Slice(slicePerPlant[z], func(i, j int) bool {
-			fmt.Println(slicePerPlant[z][i].accountingMonth)
-			fmt.Println(slicePerPlant[z][j].accountingMonth)
+			// fmt.Println(slicePerPlant[z][i].accountingMonth)
+			// fmt.Println(slicePerPlant[z][j].accountingMonth)
 			return slicePerPlant[z][i].accountingMonth < slicePerPlant[z][j].accountingMonth
 		})
 
@@ -835,9 +835,12 @@ func main() {
 	}
 
 	outDir = strings.Replace(outDir, "\\", "\\\\", -1) + "\\\\" + strings.Split(strings.Split(excelFileName, "\\")[2], ".")[0]
-	fmt.Println(outDir)
+	fmt.Println("Wygenerowane raporty: `n`n")
 	err = fileXLSX.Save(outDir + "-obr.xlsx")
+	fmt.Println(outDir + "-obr.xlsx `n`n")
 	err = fileXLSX2.Save(outDir + "-dys.xlsx")
+	fmt.Println(outDir + "-dys.xlsx `n`n")
 	err = fileXLSX3.Save(outDir + "-dysobr.xlsx")
+	fmt.Println(outDir + "-dysobr.xlsx `n`n")
 
 }
